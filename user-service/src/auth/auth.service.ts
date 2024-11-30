@@ -38,7 +38,6 @@ export class AuthService {
     // generate access token and refresh token
     const payload = {
       sub: user.id,
-      email: user.email,
     };
 
     return this.generateToken(payload);
@@ -46,23 +45,27 @@ export class AuthService {
 
   async refreshToken(refresh_token: string) {
     try {
-      const verify = await this.jwtService.verifyAsync(refresh_token);
+      const verify = await this.jwtService.verifyAsync(refresh_token, {
+        secret: process.env.ACCESS_TOKEN_SECRET,
+      });
       const existRefreshToken = await prisma.user.findFirst({
         where: { id: verify.sub, refresh_token },
       });
 
       if (existRefreshToken) {
-        return this.generateToken({ sub: verify.sub, email: verify.email });
+        return this.generateToken({
+          sub: verify.sub,
+        });
       } else {
         throw new BadRequestException('Refresh token is not valid');
       }
     } catch (error) {
       console.log(error);
-      throw new BadRequestException('Refresh token is not valid');
+      throw new BadRequestException('Refresh token is not valid'); //status will be 400 when refresh token error
     }
   }
 
-  private async generateToken(payload: { sub: number; email: string }) {
+  private async generateToken(payload: { sub: number }) {
     const access_token = await this.jwtService.signAsync(payload);
     const refresh_token = await this.jwtService.signAsync(payload, {
       secret: process.env.ACCESS_TOKEN_SECRET,
